@@ -1,0 +1,7 @@
+version: "3"
+services:
+  party-cast:
+    build: ./
+    restart: always
+    ports:
+      - "8010:3000"

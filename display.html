@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PartyCast - Display</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>Display Screen</h1>
+
+    <div id="chat-section">
+      <h2>Chat Messages</h2>
+      <ul id="chat-messages"></ul>
+    </div>
+
+    <div id="image-section">
+      <h2>Images</h2>
+      <div
+        id="image-gallery"
+        style="display: flex; flex-wrap: wrap; gap: 10px"
+      ></div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io("http://localhost:3000");
+      const urlParams = new URLSearchParams(window.location.search);
+      const roomId = urlParams.get("roomId");
+
+      const MESSAGE_DISPLAY_TIME = 5000; // 5 seconds
+      const IMAGE_DISPLAY_TIME = 10000; // 10 seconds
+
+      // Join the room for the display
+      socket.emit("join-room", roomId);
+
+      // Display Chat Messages Temporarily
+      socket.on("new-message", (data) => {
+        const messageList = document.getElementById("chat-messages");
+        const messageItem = document.createElement("li");
+        messageItem.innerHTML = `<b>${data.sender}:</b> ${data.text}`;
+        messageList.appendChild(messageItem);
+
+        setTimeout(() => {
+          messageList.removeChild(messageItem);
+        }, MESSAGE_DISPLAY_TIME);
+      });
+
+      // Display Uploaded Images Temporarily
+      socket.on("new-image", (imageUrl) => {
+        const imageGallery = document.getElementById("image-gallery");
+        const imgElement = document.createElement("img");
+        imgElement.src = imageUrl;
+        imgElement.style.width = "100px";
+        imgElement.style.height = "100px";
+        imgElement.style.objectFit = "cover";
+        imgElement.style.borderRadius = "8px";
+        imgElement.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.2)";
+        imageGallery.appendChild(imgElement);
+
+        setTimeout(() => {
+          imageGallery.removeChild(imgElement);
+        }, IMAGE_DISPLAY_TIME);
+      });
+    </script>
+  </body>
+</html>

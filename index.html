@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PartyCast - Main</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <div id="lobby">
+        <h1>Welcome to PartyCast</h1>
+        <button onclick="createRoom()">Create Room</button>
+        <h2>Available Rooms</h2>
+        <ul id="room-list"></ul>
+      </div>
+
+      <div id="room" style="display: none">
+        <h1 id="room-name"></h1>
+        <button onclick="openDisplay()">Open Display Page</button>
+
+        <!-- Chat Section -->
+        <input id="message-input" placeholder="Type a message" />
+        <button onclick="sendMessage()">Send</button>
+        <br />
+
+        <!-- Media Section -->
+        <input id="media-input" placeholder="YouTube link or media URL" />
+        <button onclick="addMedia()">Add to Queue</button>
+        <br />
+
+        <!-- Image Upload -->
+        <input type="file" id="image-input" accept="image/*" />
+        <button onclick="uploadImage()">Upload Image</button>
+        <p id="image-upload-error" style="color: red; display: none"></p>
+        <br />
+
+        <h2>Queue</h2>
+        <ul id="queue"></ul>
+      </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io("http://localhost:3000");
+      let currentRoomId = null;
+
+      // Fetch and display rooms
+      function fetchRooms() {
+        socket.emit("get-rooms");
+      }
+
+      socket.on("room-list", (rooms) => {
+        const roomList = document.getElementById("room-list");
+        roomList.innerHTML = rooms
+          .map(
+            (room) =>
+              `<li>${room.name} <button onclick="joinRoom('${room.roomId}')">Join</button></li>`
+          )
+          .join("");
+      });
+
+      // Create a new room
+      function createRoom() {
+        const roomName = prompt("Enter room name:");
+        if (roomName) {
+          socket.emit("create-room", roomName);
+        }
+      }
+
+      // Join a room
+      function joinRoom(roomId) {
+        socket.emit("join-room", roomId);
+      }
+
+      socket.on("room-joined", ({ roomId, name }) => {
+        currentRoomId = roomId;
+        document.getElementById("lobby").style.display = "none";
+        document.getElementById("room").style.display = "block";
+        document.getElementById("room-name").innerText = name;
+      });
+
+      // Send a message
+      function sendMessage() {
+        const message = document.getElementById("message-input").value;
+        const sender = "Participant"; // Replace with the actual participant name
+        socket.emit("send-message", { roomId: currentRoomId, message, sender });
+        document.getElementById("message-input").value = "";
+      }
+
+      // Add media to the queue
+      function addMedia() {
+        const media = document.getElementById("media-input").value;
+        socket.emit("add-to-queue", { roomId: currentRoomId, media });
+        document.getElementById("media-input").value = "";
+      }
+
+      // Open the display page
+      function openDisplay() {
+        if (currentRoomId) {
+          window.open(`/display.html?roomId=${currentRoomId}`, "_blank");
+        } else {
+          alert("Join a room first!");
+        }
+      }
+
+      // Image Upload with Validation
+      function uploadImage() {
+        const fileInput = document.getElementById("image-input");
+        const errorText = document.getElementById("image-upload-error");
+        const file = fileInput.files[0];
+
+        if (!file) {
+          errorText.textContent = "No file selected!";
+          errorText.style.display = "block";
+          return;
+        }
+
+        const allowedTypes = ["image/jpeg", "image/png", "image/gif"];
+        if (!allowedTypes.includes(file.type)) {
+          errorText.textContent =
+            "Invalid file type! Only JPG, PNG, and GIF are allowed.";
+          errorText.style.display = "block";
+          return;
+        }
+
+        const maxSize = 2 * 1024 * 1024; // 2MB
+        if (file.size > maxSize) {
+          errorText.textContent = "File size exceeds 2MB!";
+          errorText.style.display = "block";
+          return;
+        }
+
+        errorText.style.display = "none";
+
+        const reader = new FileReader();
+        reader.onload = function (event) {
+          const imageBase64 = event.target.result;
+          socket.emit("upload-image", { roomId: currentRoomId, imageBase64 });
+        };
+        reader.readAsDataURL(file);
+      }
+
+      fetchRooms();
+    </script>
+  </body>
+</html>
